@@ -1,0 +1,23 @@
+[Unit]
+Description=LPZS Rodina - эмулятор линии подготовки зерна
+After=network.target
+
+[Service]
+Type=simple
+User=lpzs
+Group=lpzs
+WorkingDirectory=/opt/lpzs
+Environment=PYTHONUNBUFFERED=1
+Environment=TZ=Europe/Moscow
+ExecStart=/opt/lpzs/.venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+
+# Базовая изоляция процесса
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

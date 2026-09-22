@@ -1,0 +1,23 @@
+services:
+  lpzs:
+    build: .
+    container_name: lpzs-emulator
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      TZ: Europe/Moscow
+
+  # Обратный прокси с HTTPS. Нужен, только если сервер смотрит в интернет.
+  # Локально можно запускать один сервис lpzs и ходить на http://IP:8000
+  nginx:
+    image: nginx:alpine
+    container_name: lpzs-nginx
+    restart: unless-stopped
+    depends_on: [lpzs]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/certs:/etc/nginx/certs:ro
