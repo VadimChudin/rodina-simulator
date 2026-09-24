@@ -259,8 +259,8 @@ class Plant:
             m.dp = False
 
     # ---------------------------------------------------------------- alarms
-    def _raise(self, message: str) -> None:
-        a = Alarm(id=str(uuid.uuid4())[:8], ts=now_str(), message=message)
+    def _raise(self, message: str, active: bool = True) -> None:
+        a = Alarm(id=str(uuid.uuid4())[:8], ts=now_str(), message=message, active=active)
         self.alarms.insert(0, a)
         self.archive.insert(0, deepcopy(a))
         self.archive = self.archive[:400]
@@ -299,7 +299,7 @@ class Plant:
                     self.bunkers[k]["mode"] = "остановлен"
             else:
                 self.estop_source = ""
-                self._raise("Аварийный стоп снят")
+                self._raise("Аварийный стоп снят", active=False)
 
     # ----------------------------------------------------------- commands
     def start_machine(self, mid: str, from_mode: bool = False) -> dict:
@@ -462,7 +462,7 @@ class Plant:
             self._start_wait = 0.3
             for k in self.bunkers:
                 self.bunkers[k]["mode"] = "запуск"
-            self._raise("Запущен режим очистки")
+            self._raise("Запущен режим очистки", active=False)
             return {"ok": True, "route": self.route, "chain": chain}
 
     def stop_cleaning_mode(self) -> dict:
@@ -477,7 +477,7 @@ class Plant:
             self._stop_wait = 0.2
             for k in self.bunkers:
                 self.bunkers[k]["mode"] = "останов"
-            self._raise("Останов режима очистки")
+            self._raise("Останов режима очистки", active=False)
             return {"ok": True}
 
     def _route_chain(self) -> list[str]:
