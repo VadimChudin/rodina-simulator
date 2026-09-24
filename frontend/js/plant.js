@@ -158,20 +158,20 @@
     trier_2_1: ["Триерный блок БТ-7/2 — двигатель N2", "14.1"],
     trier_1_2: ["Триерный блок БТ-7/2 — двигатель N1", "14.2"],
     trier_2_2: ["Триерный блок БТ-7/2 — двигатель N2", "14.2"],
-    noria_15: ["Нория НС-А.10.11", "15"],
+    noria_15: ["Нория НС-А.10.08", "15"],
     flow_2: ["Переключатель потока ППМ-2.160", "13.2"],
     pnev: ["Стол пневмосортировальный СП-200", "18"],
     fan_pnev: ["Вентилятор стола СП-200", "18"],
     fan_asp_3: ["Вентилятор аспирации АС-3", "19"],
     shl_3: ["Затвор шлюзовый ЗШ-17 АС-3", "19"],
-    noria_20: ["Нория Н3-В.10.10", "20"],
-    conv_22_1: ["Конвейер шнековый КШИ-200 10М/10", "22.1"],
-    conv_22_2: ["Конвейер шнековый КШИ-200 9М/15", "22.2"],
-    conv_22_3: ["Конвейер шнековый КШИ-150 8М/5", "22.3"],
-    conv_22_4: ["Конвейер шнековый КШИ-150 9М/5", "22.4"],
-    conv_22_5: ["Конвейер шнековый КШИ-150 6М/5", "22.5"],
-    noria_23: ["Нория НС-А.10.11", "23"],
-    noria_24: ["Нория НС-А.20.11", "24"],
+    noria_20: ["Нория НС-А.10.10", "20"],
+    conv_22_1: ["Конвейер шнековый КШU-200 10М/10", "22.1"],
+    conv_22_2: ["Конвейер шнековый КШU-200 9М/15", "22.2"],
+    conv_22_3: ["Конвейер шнековый КШU-150 8М/5", "22.3"],
+    conv_22_4: ["Конвейер шнековый КШU-150 4М/5", "22.4"],
+    conv_22_5: ["Конвейер шнековый КШU-150 9М/5", "22.5"],
+    noria_23: ["Нория НЗ-В.20.11", "23"],
+    noria_24: ["Нория НЗ-В.20.11", "24"],
   };
   // Приводы с ПЧ: вход готовности, вход аварии ПЧ и выход разрешения от ПЛК.
   const PCH = {
@@ -200,11 +200,12 @@
     clock: 0, timeScale: 1, scanDt: 0.02,
     autoTrucks: true,
     // Автотранспорт: подвоз зерна в яму и вывоз из бункеров В, А, Б.
+    // Машина стоит на месте (park), пока не понадобится разгрузка/загрузка.
     trucks: {
-      truck_in: { phase: "away", x: -600, load: 1, req: false },
-      truck_out: { phase: "away", x: 600, load: 0, req: false },
-      truck_A: { phase: "away", x: 600, load: 0, req: false },
-      truck_B: { phase: "away", x: 600, load: 0, req: false },
+      truck_in: { phase: "park", x: 0, load: 1, req: false },
+      truck_out: { phase: "park", x: 0, load: 0, req: false },
+      truck_A: { phase: "park", x: 0, load: 0, req: false },
+      truck_B: { phase: "park", x: 0, load: 0, req: false },
     },
     alarms: [], archive: [],
     user: { login: "operator", role: "Оператор" },
@@ -247,6 +248,7 @@
     const e = { id, T: 2, N: 18, drive: null, dp: false, ...cfg };
     e.cells = new Array(e.N).fill(0);
     e.acc = 0; e.fill = 0; e.jam = false;
+    e.inKg = 0; e.blocked = false;             // счётчик поступления — для частиц на схеме
     ELEM[id] = e;
     return e;
   }
@@ -395,17 +397,19 @@
     if (kg <= 0) return;
     if (target.startsWith("lvl:")) { addLevel(target.slice(4), kg); return; }
     if (target.startsWith("cyc:")) { cyclone[target.slice(4)] += kg; return; }
-    ELEM[target].cells[0] += kg;
+    feed(ELEM[target], kg);
   }
+  function feed(e, kg) { e.cells[0] += kg; e.inKg += kg; }
   function stepElement(e, dt) {
     const w = speedOf(e);
     if (w <= 0.001) return;
     e.acc += w * dt * e.N / e.T;
+    e.blocked = false;
     while (e.acc >= 1) {
       e.acc -= 1;
       const out = e.cells[e.N - 1];
       const r = routesOf(e.id);
-      if (!r && out > 0) { e.acc = 0; return; }        // выход закрыт — продукт стоит
+      if (!r && out > 0) { e.acc = 0; e.blocked = true; return; }   // выход закрыт — продукт стоит
       for (let i = e.N - 1; i > 0; i--) e.cells[i] = e.cells[i - 1];
       e.cells[0] = 0;
       if (out > 0) r.forEach(([t, share]) => deliver(t, out * share));
@@ -416,14 +420,14 @@
     const c2 = S.machines.conv_2.w;
     if (c2 > 0.05) {
       const kg = Math.min(L("pit"), FEED * c2 * dt);
-      addLevel("pit", -kg); ELEM.conv_2.cells[0] += kg;
+      addLevel("pit", -kg); feed(ELEM.conv_2, kg);
     }
     // оперативные бункеры → машины под ними
     const draw = (lvl, id, target) => {
       const w = S.machines[id].w;
       if (w < 0.05) return;
       const kg = Math.min(L(lvl), FEED * 1.15 * w * dt);
-      addLevel(lvl, -kg); ELEM[target].cells[0] += kg;
+      addLevel(lvl, -kg); feed(ELEM[target], kg);
     };
     draw("bo_1", "ksp", "ksp");
     draw("bo_2", "tor", "tor");
@@ -433,7 +437,7 @@
       const w = S.machines["shl_" + k].w, c = "cyc_" + k;
       if (w < 0.05 || cyclone[c] <= 0) return;
       const kg = Math.min(cyclone[c], 0.4 * w * dt);
-      cyclone[c] -= kg; ELEM["shl_" + k].cells[0] += kg;
+      cyclone[c] -= kg; feed(ELEM["shl_" + k], kg);
     });
   }
   const ELEM_OF = { trier_1: "bt_14_1", trier_2_1: "bt_14_1", trier_1_2: "bt_14_2", trier_2_2: "bt_14_2" };
@@ -460,6 +464,7 @@
     truck_B: { key: "B", kg: 2500, rate: 350, from: 600, auto: () => S.levels.B > 0.72 },
   };
   const DRIVE_SPEED = 260;                          // ед. схемы в секунду
+  const SWAP_PAUSE = 2;                             // с между отъездом машины и подачей следующей
   function stepTrucks(dt) {
     for (const [id, t] of Object.entries(S.trucks)) {
       const c = TRUCK[id];
@@ -469,14 +474,19 @@
         t.moving = t.x !== to;
         return !t.moving;
       };
-      if (t.phase === "away") {
+      if (t.phase === "park") {
+        t.moving = false; t.x = 0;
+        if (t.req || (S.autoTrucks && c.auto())) { t.req = false; t.phase = "work"; t.t = 0; }
+      } else if (t.phase === "away") {
+        // уехавшую машину сменяет следующая: гружёная к яме, порожняя под бункер
         t.moving = false;
-        if (t.req || (S.autoTrucks && c.auto())) {
-          t.req = false; t.phase = "arrive"; t.x = c.from;
+        t.t = (t.t || 0) + dt;
+        if (t.req || t.t >= SWAP_PAUSE) {
+          t.phase = "arrive"; t.x = c.from;
           t.load = id === "truck_in" ? 1 : 0;
         }
       } else if (t.phase === "arrive") {
-        if (move(0)) { t.phase = "work"; t.t = 0; }
+        if (move(0)) { t.phase = t.req ? "work" : "park"; t.req = false; t.t = 0; }
       } else if (t.phase === "work") {
         t.t += dt;
         if (t.t < 0.8) continue;                     // пауза: подъём кузова / открытие затвора
@@ -496,7 +506,7 @@
           if (t.load >= 0.999 || (L(c.key) <= 1 && t.t > 3)) { t.phase = "leave"; t.pour = false; }
         }
       } else if (t.phase === "leave") {
-        if (move(c.from)) { t.phase = "away"; t.x = c.from; }
+        if (move(c.from)) { t.phase = "away"; t.x = c.from; t.t = 0; }
       }
     }
   }
@@ -738,7 +748,8 @@
   function callTruck(id) {
     const t = S.trucks[id];
     if (!t) return fail("Нет такого места разгрузки");
-    if (t.phase !== "away" || t.req) return fail("Автомобиль уже вызван");
+    if (t.req || t.phase === "work") return fail("Автомобиль уже вызван");
+    if (t.phase === "leave") return fail("Автомобиль уезжает, следующий подъедет через несколько секунд");
     t.req = true;
     raise(id === "truck_in" ? "Вызван автомобиль с зерном к завальной яме" : "Вызван автомобиль под " + LEVEL_NAME[TRUCK[id].key].toLowerCase(), "info");
     return ok();

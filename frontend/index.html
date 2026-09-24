@@ -8,21 +8,9 @@
 </head>
 <body>
 <div class="app">
-  <header class="site-header">
-    <a class="site-logo" href="https://sysat.by/" title="SysAT — на главную"><img alt="SysAT" src="assets/logo-contur.webp"/></a>
-    <nav class="site-nav" aria-label="Сайт SysAT">
-      <a href="https://sysat.by/projects/">Проекты</a>
-      <a href="https://sysat.by/uslugi/">Услуги</a>
-      <a href="https://sysat.by/certificates/">Сертификаты</a>
-      <a class="current" aria-current="page" href="./">Симулятор</a>
-      <a href="https://sysat.by/news/">Новости</a>
-      <a href="https://sysat.by/contact-us/">Контакты</a>
-      <a href="https://sysat.by/about/">О компании</a>
-      <a href="https://sysat.by/vakansii/">Вакансии</a>
-    </nav>
-  </header>
 
   <div class="topbar">
+    <img class="brand" alt="SysAT" src="assets/logo.webp"/>
     <div class="page-title">
       <h1>Симулятор ЛПЗС «Родина»</h1>
       <div class="page-sub">Линия подготовки зерна и семян · логика ПЛК CODESYS «Rodina» · ЕФБШ-630.01</div>
@@ -48,6 +36,7 @@
   <div class="workspace">
     <main class="stage-wrap">
       <section class="view active" id="view-mimic">
+        <div class="gemer-bar" id="gemer-bar" role="alert" hidden></div>
         <div class="stage" id="stage">
           <canvas id="plant-canvas" aria-label="Мнемосхема линии"></canvas>
           <div class="zoom">

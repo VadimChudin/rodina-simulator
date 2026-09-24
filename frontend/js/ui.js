@@ -293,7 +293,7 @@
           const st = h("div", { class: "row" }, h("span", {}, "Автомобиль под бункером"), h("span", { class: "val" }));
           up(() => {
             const t = S.trucks[tid];
-            st.lastChild.textContent = { away: "нет", arrive: "подъезжает", work: t.pour ? "загрузка " + Math.round(t.load * 100) + " %" : "на месте", leave: "уезжает" }[t.phase];
+            st.lastChild.textContent = { park: "стоит под бункером, порожний", away: "смена машины", arrive: "подъезжает", work: t.pour ? "загрузка " + Math.round(t.load * 100) + " %" : "открытие затвора", leave: "уезжает гружёным" }[t.phase];
           });
           b.append(st);
           b.append(h("div", { class: "btn-row" },
@@ -315,7 +315,7 @@
         const st = h("div", { class: "row" }, h("span", {}, "Автомобиль с зерном"), h("span", { class: "val" }));
         up(() => {
           const t = S.trucks.truck_in;
-          st.lastChild.textContent = { away: "нет", arrive: "подъезжает", work: t.pour ? "разгрузка, осталось " + Math.round(t.load * 100) + " %" : "на месте", leave: "уезжает" }[t.phase];
+          st.lastChild.textContent = { park: "стоит у ямы, гружёный", away: "смена машины", arrive: "подъезжает", work: t.pour ? "разгрузка, осталось " + Math.round(t.load * 100) + " %" : "подъём кузова", leave: "уезжает" }[t.phase];
         });
         b.append(st);
         b.append(h("div", { class: "btn-row" },
@@ -702,6 +702,11 @@
     const line = $("#alarm-line");
     line.textContent = P.statusLine();
     line.className = "alarm-line" + (V.gemer || S.alarms.some((a) => a.active && a.lvl === "err") ? "" : " ok");
+    // Общая авария — полосой над схемой, чтобы не закрывать механизмы.
+    const bar = $("#gemer-bar");
+    const barText = V.gemer ? "Общая авария · " + P.statusLine() : "";
+    if (bar.hidden !== !V.gemer) bar.hidden = !V.gemer;
+    if (bar.textContent !== barText) bar.textContent = barText;
     $("#route-line").textContent = P.routeName();
     const n = S.alarms.filter((a) => a.active).length;
     $("#tab-alarm-count").textContent = n ? n : "";
@@ -738,7 +743,7 @@
       const n = S.ND[id];
       const ids = [n.drive, n.drive2].filter(Boolean);
       let html = "";
-      if (ids.length) html = ids.map((d) => `<b>${esc(S.machines[d].name)}</b> · поз. ${S.machines[d].poz}<br>${esc(stateText(d)[0])}`).join("<hr style='border-color:#2b3d50'>");
+      if (ids.length) html = ids.map((d) => `<b>${esc(S.machines[d].name)}</b> · поз. ${S.machines[d].poz}<br>${esc(stateText(d)[0])}`).join("<hr style='border:0;border-top:1px solid #dde2e8'>");
       else if (n.level) html = `<b>${n.letter ? "Бункер " + n.letter : "Бункер оперативный " + n.poz}</b><br>Уровень ${(S.levels[n.level] * 100).toFixed(0)} %`;
       else if (id.startsWith("truck")) {
         const t = S.trucks[id];
