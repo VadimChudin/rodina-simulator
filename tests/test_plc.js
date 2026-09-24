@@ -197,7 +197,7 @@ test('ДКС нории 20: авария и мгновенный останов 
   assert.equal(S.machines.noria_20.cmd, false);
   assert.equal(S.machines.fan_pnev.cmd, false, 'NEXT вентилятора СП = нория 20');
   assert.equal(S.machines.pnev.cmd, false, 'NEXT пневмостола включает норию 20');
-  assert.ok(S.alarms.some((a) => a.active && /Нория Н3-В\.10\.10.*ДКС/.test(a.message)));
+  assert.ok(S.alarms.some((a) => a.active && /Нория НС-А\.10\.10.*ДКС/.test(a.message)));
   P.setSim('noria_20', 'dks', false); P.resetErr(); run(P, 0.2);
   assert.equal(S.machines.noria_20.fault, false);
 });
@@ -285,7 +285,16 @@ test('Автомобиль приезжает, разгружается в ям�
   run(P, 4); assert.equal(S.trucks.truck_in.phase, 'work');
   run(P, 15);
   assert.ok(S.levels.pit > 0.45, 'яма пополнена: ' + S.levels.pit.toFixed(2));
-  run(P, 5); assert.equal(S.trucks.truck_in.phase, 'away');
+  run(P, 3); assert.notEqual(S.trucks.truck_in.phase, 'work', 'разгруженный автомобиль уезжает');
+  run(P, 6);
+  assert.equal(S.trucks.truck_in.phase, 'park', 'на его место встаёт следующий');
+  assert.equal(S.trucks.truck_in.load, 1, 'следующий автомобиль гружёный');
+});
+test('Автомобили стоят на местах сразу после загрузки схемы', () => {
+  const P = fresh(), S = P.S;
+  for (const id of ['truck_in', 'truck_out', 'truck_A', 'truck_B']) assert.equal(S.trucks[id].phase, 'park', id);
+  assert.equal(S.trucks.truck_in.load, 1);
+  assert.equal(S.trucks.truck_out.load, 0);
 });
 test('Автовывоз из бункера В не даёт сработать ДВУ, пока идёт очистка', () => {
   const P = fresh(), S = P.S;
