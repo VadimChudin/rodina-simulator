@@ -36,7 +36,7 @@
   }
   function persistSettings() {
     try {
-      localStorage.setItem("lpzs_settings", JSON.stringify({s:S.settings, u:S.user, v:viewOpt}));
+      localStorage.setItem("lpzs_settings", JSON.stringify({s:S.settings, u:S.user, v:viewOpt, o:S.opt}));
       return true;
     } catch (e) {
       toast("Изменения применены только в этой сессии: сохранение недоступно", true);
@@ -739,6 +739,11 @@
       if (d.v && typeof d.v === "object") Object.keys(viewOpt).forEach(k => {
         if (typeof d.v[k] === "boolean") viewOpt[k] = d.v[k];
       });
+      if (d.o && typeof d.o === "object") {
+        const options = {};
+        Object.keys(S.opt).forEach(k => { if (typeof d.o[k] === "boolean") options[k] = d.o[k]; });
+        P.setOptions(options);
+      }
     } catch (e) { /* повреждённые данные — игнорируем */ }
   }
 
