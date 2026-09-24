@@ -290,6 +290,28 @@ test('Автомобиль приезжает, разгружается в ям�
   assert.equal(S.trucks.truck_in.phase, 'park', 'на его место встаёт следующий');
   assert.equal(S.trucks.truck_in.load, 1, 'следующий автомобиль гружёный');
 });
+test('Машины едут только кабиной вперёд (влево): приезжают справа, уезжают влево', () => {
+  const P = fresh(), S = P.S;
+  S.levels.A = 0.5;
+  assert.equal(P.callTruck('truck_A').ok, true);
+  let prev = S.trucks.truck_A.x, dir = 0, moves = 0;
+  for (let i = 0; i < 1200 && moves < 2; i++) {
+    run(P, 0.05);
+    const t = S.trucks.truck_A;
+    if (t.moving) { assert.ok(t.x <= prev + 1e-9, 'машина едет задом: ' + prev + ' → ' + t.x); dir = 1; }
+    else if (dir) { moves++; dir = 0; }
+    prev = t.x;
+    if (t.phase === 'away') prev = Infinity;          // следующая подаётся справа
+  }
+  assert.ok(moves >= 2, 'машина уехала и следующая подъехала');
+});
+test('Самотёчные трубы нигде не идут вверх: каждый выпуск выше приёмника', () => {
+  const P = fresh();
+  for (const e of Object.values(P.ELEM)) {
+    if (e.drive || e.dust) continue;
+    for (let i = 1; i < e.pts.length; i++) assert.ok(e.pts[i][1] >= e.pts[i - 1][1] - 0.5, e.id + ': участок ' + i + ' идёт вверх');
+  }
+});
 test('Автомобили стоят на местах сразу после загрузки схемы', () => {
   const P = fresh(), S = P.S;
   for (const id of ['truck_in', 'truck_out', 'truck_A', 'truck_B']) assert.equal(S.trucks[id].phase, 'park', id);

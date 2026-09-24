@@ -174,6 +174,11 @@
       ctx.strokeStyle = C.pipe; ctx.lineWidth = e.dust ? 6 : 10; ctx.stroke();
       ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 2.5; ctx.stroke();
     }
+    for (const pts of S.LINKS || []) {
+      polyPath(pts);
+      ctx.strokeStyle = C.pipeEdge; ctx.lineWidth = 13; ctx.stroke();
+      ctx.strokeStyle = C.pipe; ctx.lineWidth = 10; ctx.stroke();
+    }
   }
   function drawDucts() {
     S.DUCTS.forEach((d) => {
@@ -487,16 +492,27 @@
     // рамка смотрового разреза
     ctx.strokeStyle = "rgba(20,26,32,.85)"; ctx.lineWidth = 1.4;
     ctx.strokeRect(x0, y0, ww, y1 - y0);
-    // приводной (верхний) барабан в головке нории
-    const hx = n.x + 0.477 * n.w, hy = n.y + 0.06 * n.h, hr = 0.075 * n.w;
+    // приводной (верхний) барабан в головке нории: крышка-диск спрайта (центр и радиус
+    // замерены по noria.webp), спицы от ступицы до обода вращаются вместе с лентой
+    const hx = n.x + 0.482 * n.w, hy = n.y + 0.067 * n.h, hr = 0.082 * n.w;
     const ha = dist / hr;
     ctx.save();
-    ctx.strokeStyle = m.running ? "rgba(235,242,247,.9)" : "rgba(200,210,220,.7)"; ctx.lineWidth = hr * 0.13; ctx.lineCap = "round";
-    for (let k = 0; k < 5; k++) {
-      const q = ha + k * TAU / 5;
-      ctx.beginPath(); ctx.moveTo(hx + Math.cos(q) * hr * 0.25, hy + Math.sin(q) * hr * 0.25);
-      ctx.lineTo(hx + Math.cos(q) * hr * 0.85, hy + Math.sin(q) * hr * 0.85); ctx.stroke();
+    ctx.beginPath(); ctx.arc(hx, hy, hr, 0, TAU); ctx.clip();
+    const disc = ctx.createRadialGradient(hx - hr * 0.3, hy - hr * 0.3, hr * 0.1, hx, hy, hr);
+    disc.addColorStop(0, "#7d8a96"); disc.addColorStop(1, "#3c4752");
+    ctx.fillStyle = disc; ctx.fillRect(hx - hr, hy - hr, hr * 2, hr * 2);
+    ctx.lineCap = "round";
+    for (let k = 0; k < 6; k++) {
+      const q = ha + k * TAU / 6;
+      ctx.strokeStyle = "#1f272e"; ctx.lineWidth = hr * 0.2;
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx + Math.cos(q) * hr * 0.8, hy + Math.sin(q) * hr * 0.8); ctx.stroke();
+      ctx.strokeStyle = "#c8d2da"; ctx.lineWidth = hr * 0.09;
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx + Math.cos(q) * hr * 0.78, hy + Math.sin(q) * hr * 0.78); ctx.stroke();
     }
+    ctx.strokeStyle = "#232c34"; ctx.lineWidth = hr * 0.16;
+    ctx.beginPath(); ctx.arc(hx, hy, hr * 0.88, 0, TAU); ctx.stroke();
+    ctx.fillStyle = "#d5dde3"; ctx.beginPath(); ctx.arc(hx, hy, hr * 0.17, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#2a333b"; ctx.beginPath(); ctx.arc(hx, hy, hr * 0.07, 0, TAU); ctx.fill();
     ctx.restore();
   }
 
@@ -527,7 +543,9 @@
     const [ux, uy, uw, uh] = MECH_WINDOWS.screw;
     const x = n.x + ux*n.w, y = n.y + uy*n.h, len = uw*n.w, h = uh*n.h;
     const cy = y + h*0.48, radius = h*0.43, shaft = radius*0.21;
-    const pitch = len/6.5, skew = radius*0.28, angle = (m.spin || 0)*4.8;
+    // Волна витков бежит туда, куда шнек везёт продукт (по направлению тракта).
+    const fwd = !e || e.pts[e.pts.length-1][0] >= e.pts[0][0];
+    const pitch = len/6.5, skew = radius*0.28, angle = (m.spin || 0)*4.8*(fwd ? -1 : 1);
     const dark = !m.running, facets = [];
     ctx.save();
     // Opaque cavity replaces the old static flights, only inside the cutaway.
@@ -711,6 +729,33 @@
       }
     }
     if (n.kind === "fan" && m) drawImpeller(n, m);
+    if (n.kind === "op" && m) drawDebearderRotor(n, m);
+  }
+
+  // Ротор остеобрушивателя в смотровом окне спрайта debearder.webp
+  // (окно и ступица замерены по рисунку): лопатки крутятся с приводом.
+  function drawDebearderRotor(n, m) {
+    const x0 = n.x + 0.389 * n.w, y0 = n.y + 0.36 * n.h, w = 0.237 * n.w, h = 0.202 * n.h;
+    const cx = n.x + 0.497 * n.w, cy = n.y + 0.465 * n.h, R = 0.113 * n.w;
+    const dark = !m.running && m.w < 0.05, a0 = (m.spin || 0) * 9;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x0, y0, w, h); ctx.clip();
+    ctx.fillStyle = "#0e151b"; ctx.fillRect(x0, y0, w, h);
+    for (let k = 0; k < 12; k++) {
+      const q = a0 + k * TAU / 12;
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(q);
+      const g = ctx.createLinearGradient(0, -R * 0.1, 0, R * 0.1);
+      g.addColorStop(0, dark ? "#6d7780" : "#aeb9c2"); g.addColorStop(1, dark ? "#3a434b" : "#5d6973");
+      ctx.fillStyle = g; ctx.fillRect(R * 0.42, -R * 0.1, R * 0.56, R * 0.2);
+      ctx.restore();
+    }
+    if (m.w > 0.3) { ctx.globalAlpha = 0.2 * m.w; ctx.fillStyle = "#9aa7b2"; ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fill(); ctx.globalAlpha = 1; }
+    const hub = ctx.createRadialGradient(cx - R * 0.1, cy - R * 0.1, 0, cx, cy, R * 0.4);
+    hub.addColorStop(0, "#e1e7ec"); hub.addColorStop(1, "#6b7682");
+    ctx.fillStyle = hub; ctx.beginPath(); ctx.arc(cx, cy, R * 0.38, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#2b333a";
+    for (let k = 0; k < 6; k++) { const q = a0 + k * TAU / 6; ctx.beginPath(); ctx.arc(cx + Math.cos(q) * R * 0.26, cy + Math.sin(q) * R * 0.26, R * 0.035, 0, TAU); ctx.fill(); }
+    ctx.restore();
   }
 
   // Крыльчатка в решётке входного патрубка спрайта fan.webp (центр и радиус замерены по рисунку).
@@ -830,20 +875,22 @@
     return C.idle;
   }
 
-  // Шлюзовый затвор: корпус и ротор с лопастями.
+  // Шлюзовый затвор: ротор с лопатками в крышке затвора спрайта циклона и лампа состояния.
   function drawSluice(id) {
     const n = S.ND[id], m = machineOf(n);
-    const cx = n.x + n.w / 2, cy = n.y + n.h / 2, r = n.h * 0.36;
-    rr(n.x, n.y, n.w, n.h, 6);
-    const g = ctx.createLinearGradient(n.x, 0, n.x + n.w, 0);
-    g.addColorStop(0, "#2b3844"); g.addColorStop(0.5, "#5b6d7a"); g.addColorStop(1, "#2b3844");
-    ctx.fillStyle = g; ctx.fill();
-    ctx.strokeStyle = m && m.fault ? C.bad : "#1b252e"; ctx.lineWidth = 2; ctx.stroke();
-    ctx.save(); ctx.translate(cx, cy); ctx.rotate((m ? m.spin : 0) * 3);
-    ctx.strokeStyle = m && m.running ? "#d8e3ea" : "#8391a0"; ctx.lineWidth = 3;
-    for (let k = 0; k < 6; k++) { ctx.rotate(Math.PI / 3); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(r, 0); ctx.stroke(); }
+    const cx = n.x + n.w / 2, cy = n.y + n.h / 2, r = Math.min(n.w, n.h) * 0.46;
+    ctx.save();
+    ctx.beginPath(); ctx.ellipse(cx, cy, r, r * 1.05, 0, 0, TAU); ctx.clip();
+    const g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, r * 0.1, cx, cy, r);
+    g.addColorStop(0, "#6d7a86"); g.addColorStop(1, "#2c3640");
+    ctx.fillStyle = g; ctx.fillRect(cx - r, cy - r * 1.1, r * 2, r * 2.2);
+    ctx.translate(cx, cy); ctx.rotate((m ? m.spin : 0) * 3);
+    ctx.strokeStyle = m && m.running ? "#dbe4ea" : "#8e9aa6"; ctx.lineWidth = r * 0.16; ctx.lineCap = "round";
+    for (let k = 0; k < 6; k++) { ctx.rotate(Math.PI / 3); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(r * 0.92, 0); ctx.stroke(); }
+    ctx.fillStyle = "#c9d2d9"; ctx.beginPath(); ctx.arc(0, 0, r * 0.2, 0, TAU); ctx.fill();
     ctx.restore();
-    ctx.beginPath(); ctx.arc(n.x + n.w - 9, n.y + 9, 5, 0, 7); ctx.fillStyle = stateColor(m); ctx.fill();
+    ctx.beginPath(); ctx.arc(n.x - 5, n.y + 4, 4.5, 0, TAU); ctx.fillStyle = stateColor(m); ctx.fill();
+    ctx.strokeStyle = "#1b252e"; ctx.lineWidth = 1; ctx.stroke();
   }
 
   // Значок электродвигателя для приводов без отдельного спрайта.
@@ -961,7 +1008,7 @@
     for (let j = 0; j < 22; j++) {
       const ph = (hash(j * 5) + tt * 0.35) % 1;
       const y = top + (bot - top) * ph;
-      const rad = n.w * 0.34 * (ph < 0.42 ? 1 : 1 - (ph - 0.42) / 0.58 * 0.85);
+      const rad = n.w * 0.2 * (ph < 0.42 ? 1 : Math.max(0.08, 1 - (ph - 0.42) / 0.48));   // по корпусу и конусу спрайта
       const ang = tt * 9 + j * 2.4 + ph * 14;
       const x = cx + Math.cos(ang) * rad;
       if (Math.sin(ang) < 0) continue;                      // задняя сторона — за стенкой
@@ -984,6 +1031,8 @@
     conv_22_2: "Шнек 22.2", conv_22_3: "Шнек 22.3", conv_22_4: "Шнек 22.4", conv_22_5: "Шнек 22.5",
     noria_23: "Нория 23", noria_24: "Нория 24",
   };
+  // Над этими узлами стоят бункеры / соседние машины — подпись под узлом.
+  const BELOW = new Set(["magnet_3", "ksp", "tor", "bt_14_2", "pnev", "shl_1", "shl_2", "shl_3"]);
   // Подписи рисуются в экранных координатах: читаемы при любом масштабе.
   function drawLabels() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -995,7 +1044,8 @@
       const motor = n.kind === "motor";
       if (motor && fs < 11) continue;                     // на мелком масштабе подписи моторов мешают
       // Переключатели потока стоят вплотную к нориям — подпись справа; магнит — под узлом.
-      const side = n.kind === "diverter" ? "right" : id === "magnet_3" ? "below" : null;
+      const side = n.kind === "diverter" || id === "bun_61" || id === "bun_16" ? "right"
+        : BELOW.has(id) ? "below" : null;
       let x = SX(n.x + n.w / 2);
       let y = motor || side === "below" ? SY(n.y + n.h) + px(13) : SY(n.y) - px(6);
       if (side === "right") { x = SX(n.x + n.w) + px(4); y = SY(n.y + n.h * 0.5); }
@@ -1171,7 +1221,9 @@
     }
     if (VOPT.ducts) drawDucts();
     if (VOPT.pipes) drawPipes();
-    BACK.forEach(drawTruck);
+    // едущие машины — позади стоящих (проезжают по дальней полосе)
+    BACK.filter((id) => S.trucks[id].moving).forEach(drawTruck);
+    BACK.filter((id) => !S.trucks[id].moving).forEach(drawTruck);
     for (const [id, n] of Object.entries(S.ND)) {
       if (BACK.includes(id)) continue;
       if (n.kind === "motor") continue;
