@@ -13,7 +13,7 @@ const results = [];
 const check = (ok, name) => { results.push([!!ok, name]); console.log(ok ? 'ok  ' : 'FAIL', name); };
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
@@ -99,6 +99,14 @@ const check = (ok, name) => { results.push([!!ok, name]); console.log(ok ? 'ok  
     check(await page.locator('.dlg').evaluate((el) => el.getBoundingClientRect().right <= innerWidth + 1), 'Окно помещается ' + w + '×' + h);
     await page.keyboard.press('Escape');
   }
+
+  await page.click('#rail-clean');
+  const pnev = await page.evaluate(() => PLANT.V.with_pnev);
+  await page.locator('.dlg .toggle').nth(3).click();
+  await page.waitForTimeout(400);
+  await page.reload();
+  check(await page.evaluate(() => PLANT.V.with_pnev) === !pnev, 'Маршрут очистки сохраняется после перезагрузки');
+  await page.evaluate(() => localStorage.removeItem('lpzs-rodina-retain-v2'));
 
   check(errors.length === 0, 'Нет ошибок JavaScript' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await browser.close();
