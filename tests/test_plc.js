@@ -172,6 +172,15 @@ function started() {
   run(P, 0.5); P.modeStart(); run(P, 90);
   return P;
 }
+test('Штатный пуск и останов пишутся в журнал без активной аварии', () => {
+  const P = fresh();
+  run(P, 0.2);
+  assert.equal(P.modeStart().ok, true); run(P, 0.2);
+  assert.equal(P.modeStop().ok, true); run(P, 0.2);
+  assert.ok(P.S.alarms.some((a) => a.message.startsWith('Режим очистки запущен:') && !a.active));
+  assert.ok(P.S.alarms.some((a) => a.message === 'Режим очистки остановлен' && !a.active));
+  assert.equal(P.S.alarms.some((a) => a.active), false);
+});
 test('Аварийный стоп: GEMER сбрасывает режим и сразу снимает все выходы', () => {
   const P = started(), V = P.V, S = P.S;
   assert.ok(Object.values(S.machines).some((m) => m.cmd));
