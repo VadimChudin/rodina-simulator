@@ -46,13 +46,23 @@ const check = (ok, name) => { results.push([!!ok, name]); console.log(ok ? 'ok  
 
   const ids = await page.locator('[data-machine]').evaluateAll((els) => els.map((e) => e.dataset.machine));
   check(ids.length === 33, 'В списке 33 привода и переключателя ПЛК');
-  let opened = 0;
+  let opened = 0, hmi = 0;
+  const hmiStyle = () => page.evaluate(() => {
+    const d = document.querySelector('.dlg'), st = d && getComputedStyle(d);
+    return !!st && st.backgroundColor === 'rgb(0, 128, 192)' && st.backgroundImage.includes('radial-gradient');
+  });
   for (const id of ids) {
     await page.click(`[data-machine="${id}"]`);
     if (await page.locator('.dlg').isVisible()) opened++;
+    if (await hmiStyle()) hmi++;
     await page.keyboard.press('Escape');
   }
   check(opened === ids.length, 'Окно открывается для каждого механизма');
+  check(hmi === ids.length, 'Все окна механизмов — в стиле панели оператора (синее поле с точечной сеткой)');
+  let railHmi = 0;
+  const rails = ['#btn-menu', '#rail-clean', '#rail-settings', '#rail-alarms', '#rail-cabinet'];
+  for (const sel of rails) { await page.click(sel); if (await hmiStyle()) railHmi++; await page.keyboard.press('Escape'); }
+  check(railHmi === rails.length, 'Окна меню, режима, ДВУ, журнала и шкафа — в том же стиле');
 
   // щелчок по схеме
   const [x, y] = await page.evaluate(() => { const n = PLANT.ND.noria_4; return RENDER.toClient(n.x + n.w / 2, n.y + n.h / 2); });
